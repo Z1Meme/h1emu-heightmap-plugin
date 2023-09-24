@@ -55,8 +55,8 @@ export default class ServerPlugin extends BasePlugin {
       0
     ]);
 
-    if(this.lastCheck + 1000 > Date.now()) {
-      // only calculate every second
+    if(this.lastCheck + 500 > Date.now()) {
+      // only calculate every .5 second
       return;
     }
 
@@ -77,7 +77,13 @@ export default class ServerPlugin extends BasePlugin {
 
     */
 
-    const grayscaleValue = this.getGrayscaleValue(canvasX, canvasY),
+    // get second canvasX and Y, either +1 or minus 1 based on decimal
+
+    console.log(canvasX)
+    console.log(canvasY)
+
+    const grayscaleValue = this.getGrayscaleValue(Math.round(canvasX), Math.round(canvasY)),
+    //const grayscaleValue = this.getAdjustedGrayscaleValue(canvasX, canvasY),
     adjusted = grayscaleValue * 2 + .8,
     y = pos[1];
 
@@ -108,14 +114,85 @@ export default class ServerPlugin extends BasePlugin {
     }
   }
 
+  private OOB(point: number) {
+    return point > 4096 || point < -4096
+  }
+
+
+  private OOBcanvas(point: number) {
+    return point > 8192 || point < 0
+  }
+
   private getGrayscaleValue(x: number, y: number) {
     const pixelColor = this.canvasCtx.getImageData(x, y, 1, 1).data;
     const grayscaleValue = (pixelColor[0] + pixelColor[1] + pixelColor[2]) / 3; // Calculate average
     return grayscaleValue;
   }
 
-  private OOB(point: number) {
-    return point > 4096 || point < -4096
+  private getAvgPoints(start: number, end: number, count: number): number[] {
+    if (count <= 0) {
+      throw new Error("Count must be greater than zero");
+    }
+  
+    const step = (end - start) / (count + 1);
+    const averagePoints: number[] = [];
+  
+    for (let i = 1; i <= count; i++) {
+      const averagePoint = start + i * step;
+      averagePoints.push(averagePoint);
+    }
+  
+    return averagePoints;
+  }
+
+  private getDecimal(number: number): number {
+    const absNumber = Math.abs(number);
+    const decimalDigit = Math.floor((absNumber * 10) % 10);
+    return decimalDigit;
+  }
+
+  private getAdjustedGrayscaleValue(x: number, y: number) {
+    const x1 = Math.floor(x),
+    x2 = Math.ceil(x),
+    y1 = Math.floor(y),
+    y2 = Math.ceil(y);
+
+    console.log(`x1 ${x1} x2 ${x2} y1 ${y1} y2 ${y2} `);
+
+    if(this.OOBcanvas(x1) || this.OOBcanvas(x2) || this.OOBcanvas(y1) || this.OOBcanvas(y2)) {
+      return 0;
+    }
+
+    // this is fucked somewhere idk
+
+    const gray1 = this.getGrayscaleValue(x1, y1),
+    gray2 = this.getGrayscaleValue(x2, y2);
+
+    console.log(`gray1 ${gray1} gray2 ${gray2}`);
+
+    const avg = this.getAvgPoints(gray1, gray2, 10);
+
+    console.log(`avg ${avg}`);
+
+    const xDec = this.getDecimal(x),
+    yDec = this.getDecimal(y),
+    decAvg = (xDec + yDec) / 2;
+
+    return avg[decAvg];
+
+    
+
+    /*
+    const xAvg = this.getAvgPoints(x1, x2, 10),
+    yAvg = this.getAvgPoints(y1, y2, 10);
+    */
+
+
+
+    //return
+
+
+
   }
 
 }
